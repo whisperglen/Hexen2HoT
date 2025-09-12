@@ -1161,7 +1161,7 @@ void R_DrawBrushModel (entity_t *e, qboolean Translucent)
 		dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
 
 	// draw the polygon
-		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
+		if (r_nocull.integer || ((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
 			R_RenderBrushPoly (e, psurf, false);
@@ -1200,7 +1200,7 @@ R_RecursiveWorldNode
 */
 static void R_RecursiveWorldNode (mnode_t *node)
 {
-	int		c, side;
+	int		c, side, sidebit;
 	mplane_t	*plane;
 	msurface_t	*surf, **mark;
 	mleaf_t		*pleaf;
@@ -1259,10 +1259,16 @@ static void R_RecursiveWorldNode (mnode_t *node)
 		break;
 	}
 
-	if (dot >= 0)
+	if ( dot >= 0 )
+	{
 		side = 0;
+		sidebit = 0;
+	}
 	else
+	{
 		side = 1;
+		sidebit = SURF_PLANEBACK;
+	}
 
 // recurse down the children, front side first
 	R_RecursiveWorldNode (node->children[side]);
@@ -1274,19 +1280,23 @@ static void R_RecursiveWorldNode (mnode_t *node)
 	{
 		surf = cl.worldmodel->surfaces + node->firstsurface;
 
-		if (dot < 0 -BACKFACE_EPSILON)
-			side = SURF_PLANEBACK;
-		else if (dot > BACKFACE_EPSILON)
-			side = 0;
+		//if (dot < 0 -BACKFACE_EPSILON)
+		//	side = SURF_PLANEBACK;
+		//else if (dot > BACKFACE_EPSILON)
+		//	side = 0;
 
 		for ( ; c ; c--, surf++)
 		{
 			if (surf->visframe != r_framecount)
 				continue;
 
+			if ( sidebit != (surf->flags & SURF_PLANEBACK) )
+				continue;
+
 			// don't backface underwater surfaces, because they warp
-			if (!(surf->flags & SURF_UNDERWATER) && ((dot < 0) ^ !!(surf->flags & SURF_PLANEBACK)))
-				continue;	// wrong side
+			// WG: TODO: need to figure this out
+			//if ((surf->flags & SURF_UNDERWATER) == 0)
+			//	continue;	// wrong side
 
 			// sorting by texture, just store it out
 			if (!mirror
@@ -1300,6 +1310,52 @@ static void R_RecursiveWorldNode (mnode_t *node)
 
 // recurse down the back side
 	R_RecursiveWorldNode (node->children[!side]);
+
+	if ( r_nocull.integer )
+	{
+		//switch sidebit value
+		if ( side == 0 )
+		{
+			sidebit = SURF_PLANEBACK;
+		}
+		else
+		{
+			sidebit = 0;
+		}
+
+		c = node->numsurfaces;
+
+		if (c)
+		{
+			surf = cl.worldmodel->surfaces + node->firstsurface;
+
+			//if (dot < 0 -BACKFACE_EPSILON)
+			//	side = SURF_PLANEBACK;
+			//else if (dot > BACKFACE_EPSILON)
+			//	side = 0;
+
+			for ( ; c ; c--, surf++)
+			{
+				if (surf->visframe != r_framecount)
+					continue;
+
+				if ( sidebit != (surf->flags & SURF_PLANEBACK) )
+					continue;
+
+				// don't backface underwater surfaces, because they warp
+				//if ((surf->flags & SURF_UNDERWATER) == 0)
+				//	continue;	// wrong side
+
+				// sorting by texture, just store it out
+				if (!mirror
+					|| surf->texinfo->texture != cl.worldmodel->textures[mirrortexturenum])
+				{
+					surf->texturechain = surf->texinfo->texture->texturechain;
+					surf->texinfo->texture->texturechain = surf;
+				}
+			}
+		}
+	}
 }
 
 /*

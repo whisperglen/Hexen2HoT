@@ -87,6 +87,7 @@ cvar_t	r_wateralpha = {"r_wateralpha", "0.33", CVAR_ARCHIVE};
 cvar_t	r_skyalpha = {"r_skyalpha", "0.67", CVAR_ARCHIVE};
 cvar_t	r_dynamic = {"r_dynamic", "1", CVAR_NONE};
 cvar_t	r_novis = {"r_novis", "0", CVAR_NONE};
+cvar_t	r_nocull = {"r_nocull", "0", CVAR_NONE};
 cvar_t	r_wholeframe = {"r_wholeframe", "1", CVAR_ARCHIVE};
 cvar_t	r_texture_external = {"r_texture_external", "0", CVAR_ARCHIVE};
 
@@ -124,6 +125,9 @@ Returns true if the box is completely outside the frustom
 qboolean R_CullBox (vec3_t mins, vec3_t maxs)
 {
 	int		i;
+
+	if (r_nocull.integer)
+		return false;
 
 	for (i = 0; i < 4; i++)
 	{
