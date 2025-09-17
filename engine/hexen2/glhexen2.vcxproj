@@ -400,6 +400,9 @@
     <ClInclude Include="..\h2shared\resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <CopyFileToFolders Include="..\..\scripts\package4github.bat">
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
     <None Include="..\resource\h2mp.ico" />
     <None Include="..\resource\hexen2.bmp" />
     <None Include="..\resource\hexen2.ico" />
