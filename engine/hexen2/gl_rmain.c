@@ -112,6 +112,8 @@ cvar_t	gl_coloredlight = {"gl_coloredlight", "0", CVAR_ARCHIVE};
 cvar_t	gl_colored_dynamic_lights = {"gl_colored_dynamic_lights", "0", CVAR_ARCHIVE};
 cvar_t	gl_extra_dynamic_lights = {"gl_extra_dynamic_lights", "0", CVAR_ARCHIVE};
 
+cvar_t  gl_vertex_arrays = {"gl_vertex_arrays", "0", CVAR_NONE};
+
 //=============================================================================
 
 
@@ -525,7 +527,6 @@ static void GL_DrawAliasFrame (entity_t *e, aliashdr_t *paliashdr, int posenum)
 	float		l;
 	trivertx_t	*verts;
 	int		*order;
-	int		count;
 	float		r, g, b;
 	byte		ColorShade;
 
@@ -546,44 +547,137 @@ static void GL_DrawAliasFrame (entity_t *e, aliashdr_t *paliashdr, int posenum)
 	else
 		r = g = b = 1;
 
-	while (1)
+	if ( gl_vertex_arrays.integer && have_vertexarrays )
 	{
-		// get the vertex count and primitive type
-		count = *order++;
-		if (!count)
-			break;		// done
-		if (count < 0)
+		while ( 1 )
 		{
-			count = -count;
-			glBegin_fp (GL_TRIANGLE_FAN);
-		}
-		else
-			glBegin_fp (GL_TRIANGLE_STRIP);
-
-		do
-		{
-			// texture coordinates come from the draw list
-			glTexCoord2f_fp (((float *)order)[0], ((float *)order)[1]);
-			order += 2;
-
-			// normals and vertexes come from the frame list
-
-			if (gl_lightmap_format == GL_RGBA)
+			int strategy;
+			// get the vertex count and primitive type
+			int count = *order++;
+			if (!count)
+				break;		// done
+			if (count < 0)
 			{
-				l = shadedots[verts->lightnormalindex];
-				glColor4f_fp (l * lightcolor[0], l * lightcolor[1], l * lightcolor[2], model_constant_alpha);
+				count = -count;
+				//(GL_TRIANGLE_FAN);
+				strategy = 0;
 			}
 			else
 			{
-				l = shadedots[verts->lightnormalindex] * shadelight;
-				glColor4f_fp (r*l, g*l, b*l, model_constant_alpha);
+				//(GL_TRIANGLE_STRIP);
+				strategy = 1;
 			}
 
-			glVertex3f_fp (verts->v[0], verts->v[1], verts->v[2]);
-			verts++;
-		} while (--count);
+			struct vertexData_s* vb;
+			unsigned short* ib;
 
-		glEnd_fp ();
+			int totalindexes = (3 * count) - 6;
+			R_CheckDrawBufferSpace( count, totalindexes, false );
+
+			int i;
+			int index = g_drawBuff.numVertexes;
+			ib = &g_drawBuff.indexes[g_drawBuff.numIndexes];
+			vb = &g_drawBuff.vertexes[g_drawBuff.numVertexes];
+			int start = index;
+
+			for ( i = 0; i < count; i++ )
+			{
+				if ( i > 2 )
+				{
+					switch ( strategy )
+					{
+					case 0:
+						ib[0] = start;
+						ib[1] = index - 1;
+						ib += 2;
+						break;
+					case 1: { //triangle strip: switch winding strategy depending on even/uneven index
+						int uneven = i & 1;
+						ib[!uneven] = index -1;
+						ib[uneven] = index -2;
+						ib += 2;
+						break; }
+					}
+				}
+				ib[0] = index++;
+
+				// texture coordinates come from the draw list
+				vb->tex0[0] = ((float *)order)[0];
+				vb->tex0[1] = ((float *)order)[1];
+				order += 2;
+
+				// normals and vertexes come from the frame list
+				if ( gl_lightmap_format == GL_RGBA )
+				{
+					l = shadedots[verts->lightnormalindex];
+					vb->clr.b[0] = vecmax( (l * lightcolor[0]) * 255, 255 );
+					vb->clr.b[1] = vecmax( (l * lightcolor[1]) * 255, 255 );
+					vb->clr.b[2] = vecmax( (l * lightcolor[2]) * 255, 255 );
+					vb->clr.b[3] = vecmax( model_constant_alpha * 255, 255 );
+				}
+				else
+				{
+					l = shadedots[verts->lightnormalindex] * shadelight;
+					vb->clr.b[0] = vecmax( (l * r) * 255, 255 );
+					vb->clr.b[1] = vecmax( (l * g) * 255, 255 );
+					vb->clr.b[2] = vecmax( (l * b) * 255, 255 );
+					vb->clr.b[3] = vecmax( model_constant_alpha * 255, 255 );
+				}
+
+				VectorCopy( verts->v, vb->xyz );
+				verts++;
+				vb++;
+				ib++;
+			}
+
+			g_drawBuff.numVertexes += count;
+			g_drawBuff.numIndexes += totalindexes;
+
+		}
+
+		R_RenderSurfs( false );
+	}
+	else
+	{
+		while ( 1 )
+		{
+			// get the vertex count and primitive type
+			int count = *order++;
+			if ( !count )
+				break;		// done
+			if ( count < 0 )
+			{
+				count = -count;
+				glBegin_fp( GL_TRIANGLE_FAN );
+			}
+			else
+				glBegin_fp( GL_TRIANGLE_STRIP );
+
+			do
+			{
+				// texture coordinates come from the draw list
+				glTexCoord2f_fp( ((float *)order)[0], ((float *)order)[1] );
+				order += 2;
+
+				// normals and vertexes come from the frame list
+
+				if ( gl_lightmap_format == GL_RGBA )
+				{
+					l = shadedots[verts->lightnormalindex];
+					glColor4f_fp( l * lightcolor[0], l * lightcolor[1], l * lightcolor[2], model_constant_alpha );
+				}
+				else
+				{
+					l = shadedots[verts->lightnormalindex] * shadelight;
+					glColor4f_fp( r*l, g*l, b*l, model_constant_alpha );
+				}
+
+				glVertex3f_fp( verts->v[0], verts->v[1], verts->v[2] );
+				verts++;
+			} while ( --count );
+
+			glEnd_fp();
+		}
 	}
 }
 
@@ -1683,6 +1777,9 @@ static void R_SetupFrame (void)
 
 	c_brush_polys = 0;
 	c_alias_polys = 0;
+
+	g_drawBuff.numIndexes = 0;
+	g_drawBuff.numVertexes = 0;
 }
 
 

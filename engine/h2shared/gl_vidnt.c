@@ -227,6 +227,8 @@ static GLint	num_tmus = 1;
 static qboolean	have_mtex = false;
 static cvar_t	gl_multitexture = {"gl_multitexture", "0", CVAR_ARCHIVE};
 
+qboolean have_vertexarrays = false;
+
 // stencil buffer
 qboolean	have_stencil = false;
 
@@ -817,6 +819,30 @@ static void CheckMultiTextureExtensions (void)
 	}
 }
 
+
+static void CheckVertexArrayExtensions (void)
+{
+	void *fps[8];
+	fps[0] = glEnableClientState_fp = (void*)wglGetProcAddress_fp("glEnableClientState");
+	fps[1] = glDisableClientState_fp = (void*)wglGetProcAddress_fp("glDisableClientState");
+	fps[2] = glClientActiveTexture_fp = (void*)wglGetProcAddress_fp("glClientActiveTexture");
+	fps[3] = glVertexPointer_fp = (void*)wglGetProcAddress_fp("glVertexPointer");
+	fps[4] = glNormalPointer_fp = (void*)wglGetProcAddress_fp("glNormalPointer");
+	fps[5] = glTexCoordPointer_fp = (void*)wglGetProcAddress_fp("glTexCoordPointer");
+	fps[6] = glColorPointer_fp = (void*)wglGetProcAddress_fp("glColorPointer");
+	fps[7] = glDrawElements_fp = (void*)wglGetProcAddress_fp("glDrawElements");
+	for( int i = 0; i < sizeof(fps)/sizeof(fps[0]); i++ )
+	{
+		if ( fps[i] == NULL )
+		{
+			Con_SafePrintf( "Couldn't find all vertex array functions (%d)\n", i );
+			return;
+		}
+	}
+	have_vertexarrays = true;
+	Con_SafePrintf("Vertex Array extensions found\n");
+}
+
 static void CheckAnisotropyExtensions (void)
 {
 	gl_max_anisotropy = 1;
@@ -1053,6 +1079,7 @@ static void GL_Init (void)
 	VID_InitGamma ();
 
 	CheckMultiTextureExtensions();
+	CheckVertexArrayExtensions();
 	CheckAnisotropyExtensions();
 	CheckNonPowerOfTwoTextures();
 	CheckStencilBuffer();

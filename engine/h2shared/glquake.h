@@ -184,6 +184,7 @@ extern	qboolean	is_3dfx;
 extern	qboolean	is8bit;
 extern	qboolean	gl_mtexable;
 extern	qboolean	have_stencil;
+extern  qboolean    have_vertexarrays;
 
 /* view origin */
 extern	vec3_t		vup;
@@ -260,6 +261,8 @@ extern	cvar_t	gl_coloredlight;
 extern	cvar_t	gl_colored_dynamic_lights;
 extern	cvar_t	gl_extra_dynamic_lights;
 extern	cvar_t	gl_lightmapfmt;
+
+extern  cvar_t  gl_vertex_arrays;
 
 /* other globals */
 extern	int		gl_coloredstatic;	/* value of gl_coloredlight stored at level start */
@@ -343,6 +346,35 @@ void R_InitNetgraphTexture (void);
 
 void R_ReadPointFile_f (void);
 void R_TranslatePlayerSkin (int playernum);
+
+typedef union colorinfo_u
+{
+	byte b[4];
+	unsigned all;
+} colorinfo_t;
+
+#define MAX_VERTEXES 4000
+#define MAX_INDEXES (6*MAX_VERTEXES)
+struct vertexData_s
+{
+	float xyz[3];
+	colorinfo_t  clr;
+	float tex0[2];
+	float tex1[2];
+};
+
+struct drawbuff_s
+{
+	int numVertexes;
+	int numIndexes;
+	struct vertexData_s vertexes[MAX_VERTEXES];
+	unsigned short indexes[MAX_INDEXES];
+};
+
+extern struct drawbuff_s  g_drawBuff;
+
+void R_CheckDrawBufferSpace( int vertexes, int indexes, qboolean two_textures );
+void R_RenderSurfs( qboolean two_textures );
 
 #endif	/* GLQUAKE_H */
 

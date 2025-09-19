@@ -1358,6 +1358,49 @@ static void R_RecursiveWorldNode (mnode_t *node)
 	}
 }
 
+void R_CheckDrawBufferSpace( int vertexes, int indexes, qboolean two_textures )
+{
+	if ( g_drawBuff.numVertexes + vertexes > MAX_VERTEXES ||
+		g_drawBuff.numIndexes + indexes > MAX_INDEXES )
+	{
+		R_RenderSurfs(two_textures);
+	}
+}
+
+struct drawbuff_s g_drawBuff;
+
+void R_RenderSurfs( qboolean two_textures )
+{
+	if ( g_drawBuff.numIndexes )
+	{
+		glEnableClientState_fp( GL_VERTEX_ARRAY );
+		glVertexPointer_fp( 3, GL_FLOAT, sizeof( struct vertexData_s ), g_drawBuff.vertexes[0].xyz );
+		glEnableClientState_fp( GL_COLOR_ARRAY );
+		glColorPointer_fp( 4, GL_UNSIGNED_BYTE, sizeof( struct vertexData_s ), g_drawBuff.vertexes[0].clr.b );
+		glClientActiveTexture_fp( GL_TEXTURE0_ARB );
+		glEnableClientState_fp( GL_TEXTURE_COORD_ARRAY );
+		glTexCoordPointer_fp( 2, GL_FLOAT, sizeof( struct vertexData_s ), g_drawBuff.vertexes[0].tex0 );
+		if ( two_textures )
+		{
+			glClientActiveTexture_fp( GL_TEXTURE1_ARB );
+			glEnableClientState_fp( GL_TEXTURE_COORD_ARRAY );
+			glTexCoordPointer_fp( 2, GL_FLOAT, sizeof( struct vertexData_s ), g_drawBuff.vertexes[0].tex1 );
+		}
+		glDrawElements_fp( GL_TRIANGLES, g_drawBuff.numIndexes, GL_UNSIGNED_SHORT, g_drawBuff.indexes );
+		if ( two_textures )
+		{
+			glDisableClientState_fp( GL_TEXTURE_COORD_ARRAY );
+			glClientActiveTexture_fp( GL_TEXTURE0_ARB );
+		}
+		glDisableClientState_fp( GL_TEXTURE_COORD_ARRAY );
+		glDisableClientState_fp( GL_COLOR_ARRAY );
+		glDisableClientState_fp( GL_VERTEX_ARRAY );
+
+		g_drawBuff.numIndexes = 0;
+		g_drawBuff.numVertexes = 0;
+	}
+}
+
 /*
 =============
 R_DrawWorld

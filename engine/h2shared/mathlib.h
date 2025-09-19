@@ -44,6 +44,11 @@ int Q_isnan (float x);	/* For 32 bit floats only. */
 
 extern vec3_t vec3_origin;
 
+inline float vecmax( float a, float m )
+{
+	return ((a) > m ? m : (a));
+}
+
 #define VectorCompare(v1,v2)	(((v1)[0] == (v2)[0]) && ((v1)[1] == (v2)[1]) && ((v1)[2] == (v2)[2]))
 #define DotProduct(x,y)		((x)[0] * (y)[0] + (x)[1] * (y)[1] + (x)[2] * (y)[2])
 #define VectorLength(a)		sqrt(DotProduct((a),(a)))

@@ -201,6 +201,15 @@ __GL_FUNC_EXTERN func##_f func##_fp;
 GL_FUNCTION_OPT(void, glActiveTextureARB, (GLenum))
 GL_FUNCTION_OPT(void, glMultiTexCoord2fARB, (GLenum,GLfloat,GLfloat))
 
+GL_FUNCTION_OPT(void, glEnableClientState, (GLenum))
+GL_FUNCTION_OPT(void, glDisableClientState, (GLenum))
+GL_FUNCTION_OPT(void, glClientActiveTexture, (GLenum))
+GL_FUNCTION_OPT(void, glVertexPointer, (GLint size, GLenum type, GLsizei stride, const GLvoid *pointer))
+GL_FUNCTION_OPT(void, glNormalPointer, (GLenum type, GLsizei stride, const GLvoid *pointer))
+GL_FUNCTION_OPT(void, glTexCoordPointer, (GLint size, GLenum type, GLsizei stride, const GLvoid *pointer))
+GL_FUNCTION_OPT(void, glColorPointer, (GLint size, GLenum type, GLsizei stride, const GLvoid *pointer))
+GL_FUNCTION_OPT(void, glDrawElements, (GLenum mode, GLsizei count, GLenum type, const GLvoid *indices))
+
 #undef GL_FUNCTION_OPT
 
 
