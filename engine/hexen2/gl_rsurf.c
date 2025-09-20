@@ -420,25 +420,80 @@ static void DrawGLWaterPolyLightmap (glpoly_t *p)
 	float	*v;
 	vec3_t	nv;
 
-	glBegin_fp (GL_TRIANGLE_FAN);
-	v = p->verts[0];
-	for (i = 0; i < p->numverts; i++, v+= VERTEXSIZE)
+	if ( gl_vertex_arrays.integer && have_vertexarrays )
 	{
-		glTexCoord2f_fp (v[5], v[6]);
+		uint32_t	render_flags = 0;
+		struct vertexData_s* vb;
+		unsigned short* ib;
+		colorinfo_t color;
+		color.b[0] = 255; color.b[1] = 255; color.b[2] = 255; color.b[3] = 255;
 
-		if (r_waterwarp.integer)
+		int totalindexes = (3 * p->numverts) - 6;
+		R_CheckDrawBufferSpace( p->numverts, totalindexes, render_flags );
+
+		int i;
+		int index = g_drawBuff.numVertexes;
+		ib = &g_drawBuff.indexes[g_drawBuff.numIndexes];
+		vb = &g_drawBuff.vertexes[g_drawBuff.numVertexes];
+		int start = index;
+
+
+		float* v = p->verts[0];
+		for ( i = 0; i < p->numverts; i++, v += VERTEXSIZE )
 		{
-			nv[0] = v[0] + 8*sin(v[1]*0.05+realtime)*sin(v[2]*0.05+realtime);
-			nv[1] = v[1] + 8*sin(v[0]*0.05+realtime)*sin(v[2]*0.05+realtime);
-			nv[2] = v[2];
-			glVertex3fv_fp (nv);
+			if ( i > 2 )
+			{
+				ib[0] = start;
+				ib[1] = index - 1;
+				ib += 2;
+			}
+			ib[0] = index++;
+
+			vb->clr.all = color.all;
+
+			vb->tex0[0] = v[5];
+			vb->tex0[1] = v[6];
+
+			if ( r_waterwarp.integer )
+			{
+				nv[0] = v[0] + 8*sin( v[1]*0.05+realtime )*sin( v[2]*0.05+realtime );
+				nv[1] = v[1] + 8*sin( v[0]*0.05+realtime )*sin( v[2]*0.05+realtime );
+				nv[2] = v[2];
+				VectorCopy( nv, vb->xyz );
+			}
+			else
+			{
+				VectorCopy( v, vb->xyz );
+			}
+
+			vb++;
+			ib++;
 		}
-		else
-		{
-			glVertex3fv_fp (v);
-		}
+		g_drawBuff.numVertexes += p->numverts;
+		g_drawBuff.numIndexes += totalindexes;
 	}
-	glEnd_fp ();
+	else
+	{
+		glBegin_fp( GL_TRIANGLE_FAN );
+		v = p->verts[0];
+		for ( i = 0; i < p->numverts; i++, v += VERTEXSIZE )
+		{
+			glTexCoord2f_fp( v[5], v[6] );
+
+			if ( r_waterwarp.integer )
+			{
+				nv[0] = v[0] + 8*sin( v[1]*0.05+realtime )*sin( v[2]*0.05+realtime );
+				nv[1] = v[1] + 8*sin( v[0]*0.05+realtime )*sin( v[2]*0.05+realtime );
+				nv[2] = v[2];
+				glVertex3fv_fp( nv );
+			}
+			else
+			{
+				glVertex3fv_fp( v );
+			}
+		}
+		glEnd_fp();
+	}
 }
 
 static void DrawGLWaterPolyMTexLM (glpoly_t *p)
@@ -447,26 +502,83 @@ static void DrawGLWaterPolyMTexLM (glpoly_t *p)
 	float	*v;
 	vec3_t	nv;
 
-	glBegin_fp (GL_TRIANGLE_FAN);
-	v = p->verts[0];
-	for (i = 0; i < p->numverts; i++, v+= VERTEXSIZE)
+	if ( gl_vertex_arrays.integer && have_vertexarrays )
 	{
-		glMultiTexCoord2fARB_fp (GL_TEXTURE0_ARB, v[3], v[4]);
-		glMultiTexCoord2fARB_fp (GL_TEXTURE1_ARB, v[5], v[6]);
+		uint32_t	render_flags = 0;
+		struct vertexData_s* vb;
+		unsigned short* ib;
+		colorinfo_t color;
+		color.b[0] = 255; color.b[1] = 255; color.b[2] = 255; color.b[3] = 255;
 
-		if (r_waterwarp.integer)
+		int totalindexes = (3 * p->numverts) - 6;
+		R_CheckDrawBufferSpace( p->numverts, totalindexes, render_flags );
+
+		int i;
+		int index = g_drawBuff.numVertexes;
+		ib = &g_drawBuff.indexes[g_drawBuff.numIndexes];
+		vb = &g_drawBuff.vertexes[g_drawBuff.numVertexes];
+		int start = index;
+
+
+		float* v = p->verts[0];
+		for ( i = 0; i < p->numverts; i++, v += VERTEXSIZE )
 		{
-			nv[0] = v[0] + 8*sin(v[1]*0.05+realtime)*sin(v[2]*0.05+realtime);
-			nv[1] = v[1] + 8*sin(v[0]*0.05+realtime)*sin(v[2]*0.05+realtime);
-			nv[2] = v[2];
-			glVertex3fv_fp (nv);
+			if ( i > 2 )
+			{
+				ib[0] = start;
+				ib[1] = index - 1;
+				ib += 2;
+			}
+			ib[0] = index++;
+
+			vb->clr.all = color.all;
+
+			vb->tex0[0] = v[3];
+			vb->tex0[1] = v[4];
+			vb->tex1[0] = v[5];
+			vb->tex1[1] = v[6];
+
+			if ( r_waterwarp.integer )
+			{
+				nv[0] = v[0] + 8*sin( v[1]*0.05+realtime )*sin( v[2]*0.05+realtime );
+				nv[1] = v[1] + 8*sin( v[0]*0.05+realtime )*sin( v[2]*0.05+realtime );
+				nv[2] = v[2];
+				VectorCopy( nv, vb->xyz );
+			}
+			else
+			{
+				VectorCopy( v, vb->xyz );
+			}
+
+			vb++;
+			ib++;
 		}
-		else
-		{
-			glVertex3fv_fp (v);
-		}
+		g_drawBuff.numVertexes += p->numverts;
+		g_drawBuff.numIndexes += totalindexes;
 	}
-	glEnd_fp ();
+	else
+	{
+		glBegin_fp( GL_TRIANGLE_FAN );
+		v = p->verts[0];
+		for ( i = 0; i < p->numverts; i++, v += VERTEXSIZE )
+		{
+			glMultiTexCoord2fARB_fp( GL_TEXTURE0_ARB, v[3], v[4] );
+			glMultiTexCoord2fARB_fp( GL_TEXTURE1_ARB, v[5], v[6] );
+
+			if ( r_waterwarp.integer )
+			{
+				nv[0] = v[0] + 8*sin( v[1]*0.05+realtime )*sin( v[2]*0.05+realtime );
+				nv[1] = v[1] + 8*sin( v[0]*0.05+realtime )*sin( v[2]*0.05+realtime );
+				nv[2] = v[2];
+				glVertex3fv_fp( nv );
+			}
+			else
+			{
+				glVertex3fv_fp( v );
+			}
+		}
+		glEnd_fp();
+	}
 }
 
 /*
