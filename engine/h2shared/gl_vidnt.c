@@ -811,7 +811,7 @@ static void CheckMultiTextureExtensions (void)
 		Con_SafePrintf("Found %i TMUs support\n", num_tmus);
 		gl_mtexable = true;
 		glDisable_fp(GL_TEXTURE_2D);
-		glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+		GL_SelectTexture(0);
 	}
 	else
 	{

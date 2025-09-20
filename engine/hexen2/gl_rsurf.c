@@ -479,14 +479,59 @@ static void DrawGLPoly (glpoly_t *p)
 	int	i;
 	float	*v;
 
-	glBegin_fp (GL_POLYGON);
-	v = p->verts[0];
-	for (i = 0; i < p->numverts; i++, v+= VERTEXSIZE)
+	if ( gl_vertex_arrays.integer && have_vertexarrays )
 	{
-		glTexCoord2f_fp (v[3], v[4]);
-		glVertex3fv_fp (v);
+		uint32_t	render_flags = 0;
+		struct vertexData_s* vb;
+		unsigned short* ib;
+		colorinfo_t color;
+		color.b[0] = 255; color.b[1] = 255; color.b[2] = 255; color.b[3] = 255;
+
+		int totalindexes = (3 * p->numverts) - 6;
+		R_CheckDrawBufferSpace( p->numverts, totalindexes, render_flags );
+
+		int i;
+		int index = g_drawBuff.numVertexes;
+		ib = &g_drawBuff.indexes[g_drawBuff.numIndexes];
+		vb = &g_drawBuff.vertexes[g_drawBuff.numVertexes];
+		int start = index;
+
+
+		float* v = p->verts[0];
+		for ( i = 0; i < p->numverts; i++, v += VERTEXSIZE )
+		{
+			if ( i > 2 )
+			{
+				ib[0] = start;
+				ib[1] = index - 1;
+				ib += 2;
+			}
+			ib[0] = index++;
+
+			vb->clr.all = color.all;
+
+			vb->tex0[0] = v[3];
+			vb->tex0[1] = v[4];
+
+			VectorCopy( v, vb->xyz );
+
+			vb++;
+			ib++;
+		}
+		g_drawBuff.numVertexes += p->numverts;
+		g_drawBuff.numIndexes += totalindexes;
 	}
-	glEnd_fp ();
+	else
+	{
+		glBegin_fp( GL_POLYGON );
+		v = p->verts[0];
+		for ( i = 0; i < p->numverts; i++, v += VERTEXSIZE )
+		{
+			glTexCoord2f_fp( v[3], v[4] );
+			glVertex3fv_fp( v );
+		}
+		glEnd_fp();
+	}
 }
 
 static void DrawGLPolyMTex (glpoly_t *p)
@@ -494,16 +539,63 @@ static void DrawGLPolyMTex (glpoly_t *p)
 	int	i;
 	float	*v;
 
-	glBegin_fp (GL_POLYGON);
-	v = p->verts[0];
-	for (i = 0; i < p->numverts; i++, v+= VERTEXSIZE)
+	if ( gl_vertex_arrays.integer && have_vertexarrays )
 	{
-		glMultiTexCoord2fARB_fp (GL_TEXTURE0_ARB, v[3], v[4]);
-		glMultiTexCoord2fARB_fp (GL_TEXTURE1_ARB, v[5], v[6]);
+		uint32_t	render_flags = 0;
+		struct vertexData_s* vb;
+		unsigned short* ib;
+		colorinfo_t color;
+		color.b[0] = 255; color.b[1] = 255; color.b[2] = 255; color.b[3] = 255;
 
-		glVertex3fv_fp (v);
+		int totalindexes = (3 * p->numverts) - 6;
+		R_CheckDrawBufferSpace( p->numverts, totalindexes, render_flags );
+
+		int i;
+		int index = g_drawBuff.numVertexes;
+		ib = &g_drawBuff.indexes[g_drawBuff.numIndexes];
+		vb = &g_drawBuff.vertexes[g_drawBuff.numVertexes];
+		int start = index;
+
+
+		float* v = p->verts[0];
+		for ( i = 0; i < p->numverts; i++, v += VERTEXSIZE )
+		{
+			if ( i > 2 )
+			{
+				ib[0] = start;
+				ib[1] = index - 1;
+				ib += 2;
+			}
+			ib[0] = index++;
+
+			vb->clr.all = color.all;
+
+			vb->tex0[0] = v[3];
+			vb->tex0[1] = v[4];
+			vb->tex1[0] = v[5];
+			vb->tex1[1] = v[6];
+
+			VectorCopy( v, vb->xyz );
+
+			vb++;
+			ib++;
+		}
+		g_drawBuff.numVertexes += p->numverts;
+		g_drawBuff.numIndexes += totalindexes;
 	}
-	glEnd_fp ();
+	else
+	{
+		glBegin_fp( GL_POLYGON );
+		v = p->verts[0];
+		for ( i = 0; i < p->numverts; i++, v += VERTEXSIZE )
+		{
+			glMultiTexCoord2fARB_fp( GL_TEXTURE0_ARB, v[3], v[4] );
+			glMultiTexCoord2fARB_fp( GL_TEXTURE1_ARB, v[5], v[6] );
+
+			glVertex3fv_fp( v );
+		}
+		glEnd_fp();
+	}
 }
 
 
@@ -612,7 +704,7 @@ static void R_UpdateLightmaps (qboolean Translucent)
 	if (r_fullbright.integer)
 		return;
 
-	glActiveTextureARB_fp (GL_TEXTURE1_ARB);
+	GL_SelectTexture(1);
 
 	if (! lightmap_textures[0])
 	{
@@ -641,7 +733,7 @@ static void R_UpdateLightmaps (qboolean Translucent)
 		}
 	}
 
-	glActiveTextureARB_fp (GL_TEXTURE0_ARB);
+	GL_SelectTexture(0);
 }
 
 
@@ -660,7 +752,7 @@ void R_RenderBrushPoly (entity_t *e, msurface_t *fa, qboolean override)
 	c_brush_polys++;
 
 	if (gl_mtexable)
-		glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+		GL_SelectTexture(0);
 
 	intensity = 1.0f;
 	alpha_val = 1.0f;
@@ -688,6 +780,7 @@ void R_RenderBrushPoly (entity_t *e, msurface_t *fa, qboolean override)
 	}
 
 	t = R_TextureAnimation (e, fa->texinfo->texture);
+	R_RenderSurfs_CheckTex(t->gl_texturenum);
 	GL_Bind (t->gl_texturenum);
 
 	if (fa->flags & SURF_DRAWTURB)
@@ -708,7 +801,7 @@ void R_RenderBrushPoly (entity_t *e, msurface_t *fa, qboolean override)
 		}
 		else
 		{
-			glActiveTextureARB_fp(GL_TEXTURE1_ARB);
+			GL_SelectTexture(1);
 
 			if (gl_lightmap_format == GL_LUMINANCE)
 				glTexEnvf_fp(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_BLEND);
@@ -716,6 +809,7 @@ void R_RenderBrushPoly (entity_t *e, msurface_t *fa, qboolean override)
 				glTexEnvf_fp(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 			glEnable_fp(GL_TEXTURE_2D);
+			R_RenderSurfs_CheckTex( lightmap_textures[fa->lightmaptexturenum] );
 			GL_Bind (lightmap_textures[fa->lightmaptexturenum]);
 			//glEnable_fp (GL_BLEND);
 
@@ -728,7 +822,7 @@ void R_RenderBrushPoly (entity_t *e, msurface_t *fa, qboolean override)
 			glTexEnvf_fp(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 			//glDisable_fp (GL_BLEND);
 
-			glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+			GL_SelectTexture(0);
 		}
 	}
 	else
@@ -784,7 +878,7 @@ void R_RenderBrushPolyMTex (entity_t *e, msurface_t *fa, qboolean override)
 
 	c_brush_polys++;
 
-	glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+	GL_SelectTexture(0);
 
 	intensity = 1.0f;
 	alpha_val = 1.0f;
@@ -811,9 +905,9 @@ void R_RenderBrushPolyMTex (entity_t *e, msurface_t *fa, qboolean override)
 	{
 		glTexEnvf_fp(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 		glDisable_fp (GL_BLEND);
-		glActiveTextureARB_fp(GL_TEXTURE1_ARB);
+		GL_SelectTexture(1);
 		glDisable_fp(GL_TEXTURE_2D);
-		glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+		GL_SelectTexture(0);
 
 		intensity = 1.0;
 	}
@@ -827,8 +921,9 @@ void R_RenderBrushPolyMTex (entity_t *e, msurface_t *fa, qboolean override)
 		return;
 	}
 
-	glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+	GL_SelectTexture(0);
 	t = R_TextureAnimation (e, fa->texinfo->texture);
+	R_RenderSurfs_CheckTex( t->gl_texturenum );
 	GL_Bind (t->gl_texturenum);
 
 	if (fa->flags & SURF_DRAWTURB)
@@ -841,7 +936,7 @@ void R_RenderBrushPolyMTex (entity_t *e, msurface_t *fa, qboolean override)
 	{
 		if ((e->drawflags & MLS_ABSLIGHT) == MLS_ABSLIGHT)
 		{
-			glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+			GL_SelectTexture(0);
 
 			if (fa->flags & SURF_UNDERWATER)
 				DrawGLWaterPoly (fa->polys);
@@ -850,7 +945,8 @@ void R_RenderBrushPolyMTex (entity_t *e, msurface_t *fa, qboolean override)
 		}
 		else
 		{
-			glActiveTextureARB_fp(GL_TEXTURE1_ARB);
+			GL_SelectTexture(1);
+			R_RenderSurfs_CheckTex( lightmap_textures[fa->lightmaptexturenum] );
 			GL_Bind (lightmap_textures[fa->lightmaptexturenum]);
 
 			if (fa->flags & SURF_UNDERWATER)
@@ -859,7 +955,7 @@ void R_RenderBrushPolyMTex (entity_t *e, msurface_t *fa, qboolean override)
 				DrawGLPolyMTex (fa->polys);
 		}
 
-		glActiveTextureARB_fp(GL_TEXTURE1_ARB);
+		GL_SelectTexture(1);
 
 		// add the poly to the proper lightmap chain
 		fa->polys->chain = lightmap_polys[fa->lightmaptexturenum];
@@ -886,7 +982,7 @@ dynamic1:
 		}
 	}
 
-	glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+	GL_SelectTexture(0);
 
 	if ((e->drawflags & MLS_ABSLIGHT) == MLS_ABSLIGHT ||
 	    (e->drawflags & DRF_TRANSLUCENT))
@@ -899,7 +995,7 @@ dynamic1:
 		glDisable_fp (GL_BLEND);
 	}
 
-	glActiveTextureARB_fp(GL_TEXTURE1_ARB);
+	GL_SelectTexture(1);
 }
 
 
@@ -961,6 +1057,7 @@ void R_DrawWaterSurfaces (void)
 		else
 			glColor4f_fp (1,1,1,1);
 
+		R_RenderSurfs_CheckTex( t->gl_texturenum );
 		// set modulate mode explicitly
 		GL_Bind (t->gl_texturenum);
 
@@ -987,6 +1084,8 @@ static void DrawTextureChains (entity_t *e)
 	int		i;
 	msurface_t	*s;
 	texture_t	*t;
+
+	R_RenderSurfs( GL_GetActiveTexUnit() == 1 );
 
 	for (i = 0; i < cl.worldmodel->numtextures; i++)
 	{
@@ -1016,9 +1115,9 @@ static void DrawTextureChains (entity_t *e)
 			}
 			else if (gl_mtexable)
 			{
-				glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+				GL_SelectTexture(0);
 				glEnable_fp(GL_TEXTURE_2D);
-				glActiveTextureARB_fp(GL_TEXTURE1_ARB);
+				GL_SelectTexture(1);
 				glEnable_fp(GL_TEXTURE_2D);
 
 				if (gl_lightmap_format == GL_LUMINANCE)
@@ -1034,7 +1133,7 @@ static void DrawTextureChains (entity_t *e)
 				glDisable_fp(GL_TEXTURE_2D);
 				glTexEnvf_fp(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 				glDisable_fp (GL_BLEND);
-				glActiveTextureARB_fp(GL_TEXTURE0_ARB);
+				GL_SelectTexture(0);
 			}
 			else
 			{
@@ -1045,6 +1144,8 @@ static void DrawTextureChains (entity_t *e)
 
 		t->texturechain = NULL;
 	}
+
+	R_RenderSurfs( GL_GetActiveTexUnit() == 1 );
 }
 
 /*
@@ -1062,7 +1163,7 @@ void R_DrawBrushModel (entity_t *e, qboolean Translucent)
 	qmodel_t	*clmodel;
 	qboolean	rotated;
 
-	currenttexture = GL_UNUSED_TEXTURE;
+	GL_BindReset(RST_UNIT0 | RST_UNIT1);
 
 	clmodel = e->model;
 
@@ -1410,7 +1511,7 @@ void R_DrawWorld (void)
 {
 	VectorCopy (r_refdef.vieworg, modelorg);
 
-	currenttexture = GL_UNUSED_TEXTURE;
+	GL_BindReset(RST_UNIT0 | RST_UNIT1);
 
 	glColor4f_fp (1.0f,1.0f,1.0f,1.0f);
 	memset (lightmap_polys, 0, sizeof(lightmap_polys));
@@ -1425,9 +1526,9 @@ void R_DrawWorld (void)
 	// disable multitexturing - just in case
 	if (gl_mtexable)
 	{
-		glActiveTextureARB_fp (GL_TEXTURE1_ARB);
+		GL_SelectTexture(1);
 		glDisable_fp(GL_TEXTURE_2D);
-		glActiveTextureARB_fp (GL_TEXTURE0_ARB);
+		GL_SelectTexture(0);
 		glEnable_fp(GL_TEXTURE_2D);
 	}
 
@@ -1677,7 +1778,7 @@ void GL_BuildLightmaps (void)
 	}
 
 	if (gl_mtexable)
-		glActiveTextureARB_fp (GL_TEXTURE1_ARB);
+		GL_SelectTexture(1);
 
 	//
 	// upload all lightmaps that were filled
@@ -1696,6 +1797,6 @@ void GL_BuildLightmaps (void)
 	}
 
 	if (gl_mtexable)
-		glActiveTextureARB_fp (GL_TEXTURE0_ARB);
+		GL_SelectTexture(0);
 }
 

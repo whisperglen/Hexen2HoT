@@ -149,21 +149,70 @@ typedef struct
    ================================================================== */
 
 /* gl texture objects */
-extern	GLuint		currenttexture;
+extern	GLuint		currenttexture[2];
+extern  GLuint      currenttmu;
 extern	GLuint		particletexture;
 extern	GLuint		lightmap_textures[MAX_LIGHTMAPS];
 extern	GLuint		playertextures[MAX_CLIENTS];
 extern	GLuint		gl_extra_textures[MAX_EXTRA_TEXTURES];	// generic textures for models
 
 /* the GL_Bind macro */
-#define GL_Bind(texnum)							\
-	do {								\
-		if (currenttexture != (texnum))				\
-		{							\
-			currenttexture = (texnum);			\
-			glBindTexture_fp(GL_TEXTURE_2D,currenttexture);	\
-		}							\
-	} while (0)
+inline void GL_Bind( texnum )
+{
+	if ( currenttexture[currenttmu] != texnum )
+	{
+		currenttexture[currenttmu] = texnum;
+		glBindTexture_fp( GL_TEXTURE_2D, texnum );
+	}
+}
+
+typedef enum BindReset_e
+{
+	RST_UNIT0 = 1,
+	RST_UNIT1 = 2,
+} BindReset_t;
+
+inline void GL_BindReset(GLuint cfg)
+{
+	if( cfg & RST_UNIT0 )
+		currenttexture[0] = GL_UNUSED_TEXTURE;
+	if( cfg & RST_UNIT1 )
+		currenttexture[1] = GL_UNUSED_TEXTURE;
+}
+
+inline GLuint GL_GetBoundTexture()
+{
+	return currenttexture[currenttmu];
+}
+
+inline GLuint GL_GetBoundTextureEx(int unit)
+{
+	return currenttexture[unit];
+}
+
+inline GLuint GL_GetActiveTexUnit()
+{
+	return currenttmu;
+}
+
+inline void GL_SelectTexture( int unit ) 
+{
+	if ( currenttmu == unit ) {
+		return;
+	}
+
+	if ( unit == 0 ) {
+		glActiveTextureARB_fp( GL_TEXTURE0_ARB );
+		//glClientActiveTextureARB( GL_TEXTURE0_ARB );
+	} else if ( unit == 1 )   {
+		glActiveTextureARB_fp( GL_TEXTURE1_ARB );
+		//glClientActiveTextureARB( GL_TEXTURE1_ARB );
+	} else {
+		Con_Printf ("ERROR: GL_SelectTexture: unit = %i", unit );
+	}
+
+	currenttmu = unit;
+}
 
 extern	int		gl_texlevel;
 extern	int		numgltextures;
@@ -375,6 +424,14 @@ extern struct drawbuff_s  g_drawBuff;
 
 void R_CheckDrawBufferSpace( int vertexes, int indexes, qboolean two_textures );
 void R_RenderSurfs( qboolean two_textures );
+
+inline void R_RenderSurfs_CheckTex(GLuint texnum)
+{
+	if ( GL_GetBoundTexture() != texnum )
+	{
+		R_RenderSurfs( GL_GetActiveTexUnit() == 1 );
+	}
+}
 
 #endif	/* GLQUAKE_H */
 

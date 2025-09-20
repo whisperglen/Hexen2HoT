@@ -248,7 +248,7 @@ static void EmitSkyPolysMulti (msurface_t *fa)
 	glTexEnvf_fp(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	GL_Bind (solidskytexture);
 
-	glActiveTextureARB_fp (GL_TEXTURE1_ARB);
+	GL_SelectTexture(1);
 	glTexEnvf_fp(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
 	glEnable_fp(GL_TEXTURE_2D);
 	GL_Bind (alphaskytexture);
@@ -282,7 +282,7 @@ static void EmitSkyPolysMulti (msurface_t *fa)
 	}
 
 	glDisable_fp(GL_TEXTURE_2D);
-	glActiveTextureARB_fp (GL_TEXTURE0_ARB);
+	GL_SelectTexture(0);
 }
 
 static void EmitSkyPolys (msurface_t *fa)
